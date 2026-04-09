@@ -53,4 +53,12 @@ public class ActivityService {
 
         return activities.stream().map(ActivityService::mapToResponse).toList();
     }
+
+    public ActivityResponse getActivityById(String id) {
+
+        Activity activity = activityRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Activity not found with id: " + id));
+
+        return mapToResponse(activity);
+    }
 }
