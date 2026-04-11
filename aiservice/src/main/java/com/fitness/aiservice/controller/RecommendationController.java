@@ -4,14 +4,14 @@ import com.fitness.aiservice.model.Recommendation;
 import com.fitness.aiservice.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/recommendations")
 public class RecommendationController {
@@ -24,7 +24,7 @@ public class RecommendationController {
         return ResponseEntity.ok(recommendations);
     }
 
-    @GetMapping
+    @GetMapping("/activity/{activityId}")
     public ResponseEntity<Recommendation> getActivityRecommendations(@PathVariable String activityId) {
         Recommendation recommendation = recommendationService.getRecommendationsForActivity(activityId);
         return ResponseEntity.ok(recommendation);
