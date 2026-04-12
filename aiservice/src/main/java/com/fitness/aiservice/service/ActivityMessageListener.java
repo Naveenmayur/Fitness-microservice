@@ -13,14 +13,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ActivityMessageListener {
 
-    @Value("${rabbitmq.exchange.name}")
-    String exchangeName;
-
-    @Value("${rabbitmq.routing.key}")
-    String routingKey;
+    private final ActivityAIService activityAIService;
 
     @RabbitListener(queues = "${rabbitmq.queue.name}")
     public void processActivity(Activity activity){
         log.info("Received activity message: {}", activity.getId());
+        log.info("Generated Recommendation: {}", activityAIService.generateRecommendation(activity));
     }
 }

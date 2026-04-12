@@ -30,3 +30,10 @@ rabbitmq:
     name: fitness.queue
   routing:
     key: fitness.tracking
+
+
+# Custom Gemini properties
+gemini:
+  api:
+    url: ${GEMINI_API_URL}
+    key: ${GEMINI_API_KEY}
