@@ -1,39 +1,5 @@
 spring:
   application:
     name: ai-service
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/fitness_recommendation_db
-      database: fitness_recommendation_db
-
-  #RabbitMQ configuration
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-
-server:
-  port: 8083
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-
-
-# Custom properties for RabbitMQ
-rabbitmq:
-  exchange:
-    name: fitness.exchange
-  queue:
-    name: fitness.queue
-  routing:
-    key: fitness.tracking
-
-
-# Custom Gemini properties
-gemini:
-  api:
-    url: ${GEMINI_API_URL}
-    key: ${GEMINI_API_KEY}
+  config:
+    import: "optional:configserver:http://localhost:8888"
