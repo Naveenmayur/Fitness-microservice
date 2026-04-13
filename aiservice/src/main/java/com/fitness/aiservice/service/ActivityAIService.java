@@ -1,6 +1,10 @@
 package com.fitness.aiservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fitness.aiservice.model.Activity;
+import com.fitness.aiservice.model.Recommendation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,13 +14,52 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ActivityAIService {
 
-    private final GeminiService geminiService;
+    private final GeminiWebClientService geminiWebClientService;
 
-    public String generateRecommendation(Activity activity) {
+    private final GeminiService geminiService;
+    private final ObjectMapper objectMapper;   // Spring Boot auto-configures this
+
+    public Recommendation generateRecommendation(Activity activity) throws JsonProcessingException {
         String prompt = createPromptForActivity(activity);
         String aiResponse = geminiService.getAnswer(prompt);
-        log.info("Generated AI recommendation for activity {}: {}", activity.getId(), aiResponse);
-        return aiResponse;
+
+        Recommendation recommendation = mapAiResponseToRecommendation(aiResponse, activity);
+
+        log.info("Generated AI recommendation for activity {}: {}", activity.getId(), recommendation.getSummary());
+        return recommendation;
+    }
+
+    private Recommendation mapAiResponseToRecommendation(String aiResponse,
+                                                         Activity activity) throws JsonProcessingException {
+
+        // Clean the response in case Gemini adds ```json ... ```
+        String cleanJson = cleanJsonResponse(aiResponse);
+
+        Recommendation recommendation = objectMapper.readValue(cleanJson, Recommendation.class);
+
+        // Set additional fields not coming from AI
+        recommendation.setUserId(activity.getUserId());
+        recommendation.setActivityId(activity.getId());
+        recommendation.setActivityType(activity.getType());
+
+        return recommendation;
+    }
+
+    /**
+     * Removes markdown code blocks if Gemini wraps the JSON
+     */
+    private String cleanJsonResponse(String response) {
+        if (response == null) return "{}";
+
+        String cleaned = response.trim();
+
+        if (cleaned.startsWith("```json")) {
+            cleaned = cleaned.replace("```json", "").replace("```", "").trim();
+        } else if (cleaned.startsWith("```")) {
+            cleaned = cleaned.replace("```", "").trim();
+        }
+
+        return cleaned;
     }
 
     private String createPromptForActivity(Activity activity) {
@@ -49,6 +92,7 @@ public class ActivityAIService {
                         "{\n" +
                         "  \"summary\": \"string\",\n" +
                         "  \"performanceAnalysis\": \"string\",\n" +
+                        "  \"recommendation\": \"string\",\n" +
                         "  \"intensity\": \"low | moderate | high\",\n" +
                         "  \"insights\": [\"string\", \"string\", \"string\"],\n" +
                         "  \"improvements\": [\"string\", \"string\", \"string\"],\n" +

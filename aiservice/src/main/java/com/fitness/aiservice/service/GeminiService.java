@@ -1,71 +1,44 @@
 package com.fitness.aiservice.service;
 
-import com.fitness.aiservice.model.Activity;
 import com.google.genai.Client;
 import com.google.genai.types.GenerateContentResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-
-import java.util.List;
-import java.util.Map;
 
 @Service
+@Slf4j
 public class GeminiService {
 
-//    Client client = new Client();
-//
-//    public GeminiService(@Value("${gemini.api.key}") String apiKey) {
-//        try {
-//            this.client = Client.builder()
-//                    .apiKey(apiKey)
-//                    .build();
-//        } catch (Exception e) {
-//            e.printStackTrace(); // <-- you'll see actual cause
-//            throw e;
-//        }
-//    }
-//
-//    public String getAnswer(String question){
-//        GenerateContentResponse response =
-//                client.models.generateContent("gemini-3-flash-preview", question, null);
-//
-//        return response.text();
-//    }
+    private final Client client;
 
-    private final WebClient  webClient;
+    // This constructor will receive the key directly from properties
+    public GeminiService(@Value("${gemini.api.key}") String geminiApiKey) {
+        if (geminiApiKey == null || geminiApiKey.trim().isEmpty()) {
+            throw new IllegalArgumentException("Gemini API key is missing. Please set gemini.api.key in application.properties or application.yml");
+        }
 
-    @Value("${gemini.api.key}")
-    private String geminiApiKey;
-
-    @Value("${gemini.api.url}")
-    private String geminiApiUrl;
-
-
-    public GeminiService(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.build();
+        this.client = Client.builder()
+                .apiKey(geminiApiKey.trim())
+                .build();
     }
 
     public String getAnswer(String question) {
-        Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of(
-                                "parts", List.of(
-                                        Map.of("text", question)
-                                )
-                        )
-                )
-        );
+        try {
+            GenerateContentResponse response = client.models.generateContent(
+                    "gemini-3-flash-preview",
+                    question,
+                    null
+            );
 
-        String response = webClient.post()
-                .uri(geminiApiUrl)
-                .header("Content-Type", "application/json")
-                .header("x-goog-api-key", geminiApiKey)
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+            String text = response.text();
+            return text != null && !text.isBlank()
+                    ? text
+                    : "Sorry, I couldn't generate a response at this time.";
 
-        return response;
+        } catch (Exception e) {
+            log.error("Error calling Gemini API", e);   // Add @Slf4j if you want logging here
+            throw new RuntimeException("Failed to get answer from Gemini: " + e.getMessage(), e);
+        }
     }
 }
