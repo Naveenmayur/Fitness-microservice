@@ -1,0 +1,33 @@
+server:
+  port: 8082
+
+spring:
+
+  #MongoDB configuration
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/fitness_activity_db
+      database: fitness_activity_db
+
+  #RabbitMQ configuration
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+#Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+
+# Custom properties for RabbitMQ
+rabbitmq:
+  exchange:
+    name: fitness.exchange
+  queue:
+    name: fitness.queue
+  routing:
+    key: fitness.tracking
