@@ -1,4 +1,4 @@
-package com.fitness.userservice.dto;
+package com.fitness.gateway.user;
 
 import com.fitness.userservice.model.UserRole;
 import lombok.Data;
@@ -13,7 +13,6 @@ public class UserResponse {
     private String password;
     private String firstname;
     private String lastname;
-    private UserRole userRole = UserRole.USER;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

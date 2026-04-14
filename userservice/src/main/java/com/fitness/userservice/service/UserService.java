@@ -7,6 +7,7 @@ import com.fitness.userservice.model.User;
 import com.fitness.userservice.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,23 +23,15 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
-        UserResponse response = new UserResponse();
-        response.setId(user.getId());
-        response.setEmail(user.getEmail());
-        response.setFirstname(user.getFirstname());
-        response.setLastname(user.getLastname());
-        response.setPassword(user.getPassword());
-        response.setCreatedAt(user.getCreatedAt());
-        response.setUpdatedAt(user.getUpdatedAt());
-        response.setUserRole(user.getUserRole());
-
-        return response;
+        return getUserResponse(user);
     }
+
 
     public UserResponse registerUser(@Valid RegisterRequest request) {
 
         if(userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            User existingUser = userRepository.findByEmail(request.getEmail());
+            return getUserResponse(existingUser);
         }
 
         User  user = new User();
@@ -49,20 +42,27 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        UserResponse response = new UserResponse();
-        response.setId(savedUser.getId());
-        response.setEmail(savedUser.getEmail());
-        response.setFirstname(savedUser.getFirstname());
-        response.setLastname(savedUser.getLastname());
-        response.setPassword(savedUser.getPassword());
-        response.setCreatedAt(savedUser.getCreatedAt());
-        response.setUpdatedAt(savedUser.getUpdatedAt());
-        response.setUserRole(savedUser.getUserRole());
-        return response;
+        return getUserResponse(savedUser);
     }
 
     public Boolean existByUserId(String userId) {
         log.info("Checking if user exists with id: {}", userId);
-        return userRepository.existsById(userId);
+        return userRepository.existsByKeycloakId(userId);
+    }
+
+    @NonNull
+    private UserResponse getUserResponse(User user) {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setFirstname(user.getFirstname());
+        response.setLastname(user.getLastname());
+        response.setPassword(user.getPassword());
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
+        response.setUserRole(user.getUserRole());
+        response.setKeycloakId(user.getKeycloakId());
+
+        return response;
     }
 }
