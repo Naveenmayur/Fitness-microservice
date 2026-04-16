@@ -41,8 +41,15 @@ public class UserService {
                 .bodyValue(registerRequest)
                 .retrieve()
                 .bodyToMono(UserResponse.class)
-                .doOnSuccess(user -> log.info("Successfully registered user with email: {}", user.getEmail()))
-                .doOnError(e -> log.error("Failed to register user with email: {}. Error: {}", registerRequest.getEmail(), e.getMessage()));
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    if (e.getStatusCode() == HttpStatus.BAD_REQUEST) {
+                        return Mono.error(new RuntimeException("Invalid registration request: " + e.getResponseBodyAsString()));
+                    } else if (e.getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR) {
+                        return Mono.error(new RuntimeException("User service is currently unavailable. Please try again later."));
+                    } else {
+                        return Mono.error(new RuntimeException("An error occurred while registering the user: " + e.getMessage()));
+                    }
+                });
     }
 }
 

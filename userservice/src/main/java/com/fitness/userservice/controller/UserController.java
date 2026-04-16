@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/users")
 @AllArgsConstructor
@@ -31,5 +33,11 @@ public class UserController {
     @GetMapping("/{userId}/validate")
     public ResponseEntity<Boolean> validateUser(@PathVariable String userId) {
         return ResponseEntity.ok(userService.existByUserId(userId));
+    }
+
+    //Get all users api
+    @GetMapping("/list")
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 }

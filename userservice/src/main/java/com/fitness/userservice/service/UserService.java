@@ -11,6 +11,8 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @Slf4j
 public class UserService {
@@ -39,6 +41,7 @@ public class UserService {
         user.setPassword(request.getPassword());
         user.setFirstname(request.getFirstname());
         user.setLastname(request.getLastname());
+        user.setKeycloakId(request.getKeycloakId());
 
         User savedUser = userRepository.save(user);
 
@@ -64,5 +67,10 @@ public class UserService {
         response.setKeycloakId(user.getKeycloakId());
 
         return response;
+    }
+
+    public List<UserResponse> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        return users.stream().map(this::getUserResponse).toList();
     }
 }
