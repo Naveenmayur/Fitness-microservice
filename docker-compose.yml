@@ -1,0 +1,152 @@
+# To run this setup securely without committing your API key:
+# Windows (PowerShell):  $env:GEMINI_API_KEY="your-real-key-here"; docker-compose up --build -d
+# Linux / macOS / Bash: GEMINI_API_KEY="your-real-key-here" docker-compose up --build
+
+services:
+  # --- Infrastructure ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: fitness-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongodb:
+    image: mongo:6.0
+    container_name: fitness-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fitness-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.0
+    container_name: fitness-keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8181:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
+
+  # --- Discovery & Config ---
+  eureka:
+    build: ./eureka
+    container_name: fitness-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
+
+  configserver:
+    build: ./configserver
+    container_name: fitness-configserver
+    ports:
+      - "8888:8888"
+    depends_on:
+      - eureka
+    environment:
+      SPRING_PROFILES_ACTIVE: native,docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+
+  # --- Microservices ---
+  userservice:
+    build: ./userservice
+    container_name: fitness-userservice
+    depends_on:
+      - postgres
+      - configserver
+      - eureka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: optional:configserver:http://configserver:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+
+  activityservice:
+    build: ./activityservice
+    container_name: fitness-activityservice
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - configserver
+      - eureka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: optional:configserver:http://configserver:8888
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/fitness_activity_db?authSource=admin
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+
+  aiservice:
+    build: ./aiservice
+    container_name: fitness-aiservice
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - configserver
+      - eureka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: optional:configserver:http://configserver:8888
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/fitness_recommendation_db?authSource=admin
+      SPRING_RABBITMQ_HOST: rabbitmq
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_URL: ${GEMINI_API_URL}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+
+  gateway:
+    build: ./gateway
+    container_name: fitness-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - configserver
+      - eureka
+      - keycloak
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: optional:configserver:http://configserver:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/fitness-oauth2
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/fitness-oauth2/protocol/openid-connect/certs
+
+  # --- Frontend ---
+  frontend:
+    build: ./fitness-app-frontend
+    container_name: fitness-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:
+  mongo_data:
+
+networks:
+  default:
+    name: fitness-network
